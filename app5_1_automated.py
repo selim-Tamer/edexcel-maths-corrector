@@ -45,7 +45,7 @@ st.markdown(
 )
 
 
-APP_VERSION = "3.0"
+APP_VERSION = "3.0.1"
 PRIMARY_MODELS = [
     "gemini-3.8-flash",
     "gemini-3.7-flash",
@@ -397,11 +397,24 @@ def classroom_auth_configured() -> bool:
     """Return True when Streamlit Google OAuth is configured."""
     try:
         auth = st.secrets.get("auth")
-        if auth and auth.get("client_id") and auth.get("client_secret"):
-            return True
+        if not auth:
+            return False
+
+        # We call st.login("google"), so provider-specific settings live
+        # under [auth.google]. Shared settings live under [auth].
+        google_auth = auth.get("google")
+        if not google_auth:
+            return False
+
+        return bool(
+            google_auth.get("client_id")
+            and google_auth.get("client_secret")
+            and google_auth.get("server_metadata_url")
+            and auth.get("redirect_uri")
+            and auth.get("cookie_secret")
+        )
     except Exception:
-        pass
-    return False
+        return False
 
 
 def google_logged_in() -> bool:
@@ -1219,8 +1232,8 @@ with st.expander("🎓 Google Classroom — automatic marking & grade return", e
 
     if not classroom_auth_configured():
         st.warning(
-            "Google Classroom is not configured yet. Add the [auth] settings "
-            "from the provided secrets template to Streamlit Community Cloud, "
+            "Google Classroom is not configured yet. Add the [auth] and "
+            "[auth.google] settings to Streamlit Community Cloud Secrets, "
             "then restart the app."
         )
         st.caption(
